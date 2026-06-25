@@ -185,7 +185,7 @@ export default function Hero() {
             transition={{ duration: 1, delay: 1.5 }}
             className="mt-8 text-sm font-bold uppercase tracking-[1em] text-white/40"
           >
-            Full-Stack Developer | Software Engineer
+           Software Engineer  |  Full-Stack Developer
           </motion.p>
           <motion.p
             initial={{ opacity: 0 }}

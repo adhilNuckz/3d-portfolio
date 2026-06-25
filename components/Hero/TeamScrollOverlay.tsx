@@ -116,10 +116,24 @@ export default function TeamScrollOverlay({
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [showCV, setShowCV] = useState(false);
   const skillsBoundsRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ w: 800, h: 500 });
+
+  // Track skills container size for responsive positioning
+  useEffect(() => {
+    const updateSize = () => {
+      if (skillsBoundsRef.current) {
+        const rect = skillsBoundsRef.current.getBoundingClientRect();
+        setContainerSize({ w: rect.width, h: rect.height });
+      }
+    };
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
 
   // Lock main scroll when overlays or skill panel are open
   useEffect(() => {
-    isOverlayOpen.current = showAllProjects || showCV || activeSkillName !== null;
+    isOverlayOpen.current = showAllProjects || showCV;
   }, [showAllProjects, showCV, activeSkillName, isOverlayOpen]);
 
   // --- Scroll Transformations for Sections ---
@@ -168,17 +182,25 @@ export default function TeamScrollOverlay({
     [0.06, 0.01, 0.01, 0.04]
   );
 
+  // Pointer events for each section (only interactive when visible)
+  const whoAmIPE = useTransform(whoAmIOpacity, (v) => v > 0.05 ? "auto" : "none");
+  const whereFromPE = useTransform(whereFromOpacity, (v) => v > 0.05 ? "auto" : "none");
+  const educationPE = useTransform(educationOpacity, (v) => v > 0.05 ? "auto" : "none");
+
   // 5. Skills
   const skillsOpacity = useTransform(progress, [0.58, 0.62, 0.74, 0.78], [0, 1, 1, 0]);
   const skillsY = useTransform(progress, [0.58, 0.62, 0.74, 0.78], [60, 0, 0, -60]);
+  const skillsPE = useTransform(skillsOpacity, (v) => v > 0.05 ? "auto" : "none");
 
   // 6. Projects
   const projectsOpacity = useTransform(progress, [0.78, 0.82, 0.90, 0.94], [0, 1, 1, 0]);
   const projectsY = useTransform(progress, [0.78, 0.82, 0.90, 0.94], [60, 0, 0, -60]);
+  const projectsPE = useTransform(projectsOpacity, (v) => v > 0.05 ? "auto" : "none");
 
   // 7. Contact
   const contactOpacity = useTransform(progress, [0.94, 0.97, 1.0], [0, 1, 1]);
   const contactY = useTransform(progress, [0.94, 0.97, 1.0], [60, 0, 0]);
+  const contactPE = useTransform(contactOpacity, (v) => v > 0.05 ? "auto" : "none");
 
   // Scroll vibration
   const scrollVelocity = useVelocity(smoothProgress ?? progress);
@@ -247,7 +269,7 @@ export default function TeamScrollOverlay({
   return (
     <motion.div
       style={{ x: vibrateX, y: vibrateY }}
-      className="absolute inset-0 pointer-events-none overflow-hidden"
+      className="absolute inset-0 overflow-hidden"
     >
       {/* SVG Liquid Filter */}
       <svg className="absolute w-0 h-0 pointer-events-none" style={{ visibility: "hidden" }}>
@@ -272,7 +294,7 @@ export default function TeamScrollOverlay({
 
       {/* 01: Who Am I */}
       <motion.div
-        style={{ opacity: whoAmIOpacity, y: whoAmIY }}
+        style={{ opacity: whoAmIOpacity, y: whoAmIY, pointerEvents: whoAmIPE }}
         className="absolute inset-0 flex items-center justify-center px-4"
       >
         <div className="w-full max-w-4xl grid md:grid-cols-2 gap-6 md:gap-8 items-center">
@@ -291,7 +313,7 @@ export default function TeamScrollOverlay({
           </div>
 
           <div className="glass border border-white/12 rounded-3xl p-6 md:p-8 space-y-4 bg-background/35 backdrop-blur-xl">
-            <h3 className="text-xl font-bold uppercase text-accent">Full-Stack Developer</h3>
+            <h3 className="text-xl font-bold uppercase text-accent">Software Engineer </h3>
             <p className="text-white/80 text-sm md:text-base leading-relaxed">
               Proficient in Python, JavaScript, and Go with hands-on experience building and deploying
               scalable web applications on cloud and VPS infrastructure. Passionate about writing clean,
@@ -311,7 +333,7 @@ export default function TeamScrollOverlay({
 
       {/* 02: Where I Am From */}
       <motion.div
-        style={{ opacity: whereFromOpacity, y: whereFromY }}
+        style={{ opacity: whereFromOpacity, y: whereFromY, pointerEvents: whereFromPE }}
         className="absolute inset-0 flex items-center justify-center px-4"
       >
         <div className="w-full max-w-4xl grid md:grid-cols-2 gap-6 md:gap-8 items-center">
@@ -365,7 +387,7 @@ export default function TeamScrollOverlay({
 
       {/* 03: Education & Qualification */}
       <motion.div
-        style={{ opacity: educationOpacity, y: educationY }}
+        style={{ opacity: educationOpacity, y: educationY, pointerEvents: educationPE }}
         className="absolute inset-0 flex items-center justify-center px-4"
       >
         <div className="w-full max-w-5xl grid md:grid-cols-12 gap-8 items-center h-full relative">
@@ -447,41 +469,52 @@ export default function TeamScrollOverlay({
 
       {/* 04: Skills */}
       <motion.div
-        style={{ opacity: skillsOpacity, y: skillsY }}
+        style={{ opacity: skillsOpacity, y: skillsY, pointerEvents: skillsPE }}
         className="absolute inset-0 flex items-center justify-center px-4"
       >
-        <div ref={skillsBoundsRef} className="relative w-full max-w-5xl h-[70vh] pointer-events-auto" style={{ perspective: "1200px" }}>
-          {skills.map((skill) => (
-            <motion.button
+        <div ref={skillsBoundsRef} className="relative w-full max-w-5xl h-[70vh]" style={{ perspective: "1200px" }}>
+          {skills.map((skill) => {
+            const maxDim = Math.min(containerSize.w, containerSize.h);
+            const scale = Math.max(0.3, maxDim / 600);
+            return (
+            <div
               key={skill.name}
-              type="button"
-              drag
-              dragElastic={0.12}
-              dragConstraints={skillsBoundsRef}
-              initial={{ x: skill.initial.x, y: skill.initial.y }}
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => setActiveSkillName(skill.name)}
-              className={
-                "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 " +
-                "w-24 h-24 md:w-32 md:h-32 rounded-full glass border border-white/20 " +
-                "bg-gradient-to-tr from-background/80 to-background/20 " +
-                "shadow-[inset_0_-10px_20px_rgba(0,0,0,0.5),0_10px_20px_rgba(0,0,0,0.3)] " +
-                "flex flex-col items-center justify-center cursor-grab active:cursor-grabbing"
-              }
+              style={{
+                position: "absolute",
+                left: `calc(50% + ${skill.initial.x * scale}px)`,
+                top: `calc(50% + ${skill.initial.y * scale}px)`,
+                transform: "translate(-50%, -50%)",
+              }}
             >
-              <skill.Icon className="w-6 h-6 mb-2 text-accent" />
-              <span className="font-black uppercase tracking-widest text-[10px] md:text-xs text-center text-white/90">
-                {skill.name}
-              </span>
-            </motion.button>
-          ))}
+              <motion.button
+                type="button"
+                drag
+                dragElastic={0.12}
+                dragConstraints={skillsBoundsRef}
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.96 }}
+                onTap={() => setActiveSkillName(skill.name)}
+                className={
+                  "w-24 h-24 md:w-32 md:h-32 rounded-full glass border border-white/20 " +
+                  "bg-gradient-to-tr from-background/80 to-background/20 " +
+                  "shadow-[inset_0_-10px_20px_rgba(0,0,0,0.5),0_10px_20px_rgba(0,0,0,0.3)] " +
+                  "flex flex-col items-center justify-center cursor-grab active:cursor-grabbing"
+                }
+              >
+                <skill.Icon className="w-6 h-6 mb-2 text-accent" />
+                <span className="font-black uppercase tracking-widest text-[10px] md:text-xs text-center text-white/90">
+                  {skill.name}
+                </span>
+              </motion.button>
+            </div>
+          );
+        })}
 
           {/* Skill detail panel */}
           <motion.div
-            animate={{ opacity: activeSkill ? 1 : 0, y: activeSkill ? 0 : 10 }}
+            animate={{ opacity: activeSkill ? 1 : 0, y: activeSkill ? 0 : 10, pointerEvents: activeSkill ? "auto" : "none" }}
             transition={{ duration: 0.25 }}
-            className="absolute left-1/2 bottom-4 -translate-x-1/2 w-[92%] md:w-[520px] pointer-events-auto z-40"
+            className="absolute left-1/2 bottom-4 -translate-x-1/2 w-[92%] md:w-[520px] z-40"
           >
             {activeSkill ? (
               <div className="glass border border-accent/40 rounded-3xl p-6 bg-background/70 backdrop-blur-2xl">
@@ -524,7 +557,7 @@ export default function TeamScrollOverlay({
 
       {/* 05: Projects */}
       <motion.div
-        style={{ opacity: projectsOpacity, y: projectsY }}
+        style={{ opacity: projectsOpacity, y: projectsY, pointerEvents: projectsPE }}
         className="absolute inset-0 flex items-center justify-center px-4"
       >
         <div className="w-full max-w-5xl flex flex-col items-center gap-6">
@@ -534,7 +567,7 @@ export default function TeamScrollOverlay({
             <p className="text-white/60 text-xs tracking-widest uppercase pt-2">Scroll to continue</p>
           </div>
 
-          <div className="w-full grid gap-4 md:gap-6 md:grid-cols-2 pointer-events-auto">
+          <div className="w-full grid gap-4 md:gap-6 md:grid-cols-2">
             {data.slice(0, 2).map((card) => (
               <article
                 key={card.title}
@@ -589,7 +622,7 @@ export default function TeamScrollOverlay({
           <button
             type="button"
             onClick={() => setShowAllProjects(true)}
-            className="pointer-events-auto px-6 py-3 border border-accent/40 text-accent rounded-xl text-xs font-black uppercase tracking-widest hover:bg-accent hover:text-background transition-all duration-300"
+            className="px-6 py-3 border border-accent/40 text-accent rounded-xl text-xs font-black uppercase tracking-widest hover:bg-accent hover:text-background transition-all duration-300"
           >
             View All Projects
           </button>
@@ -604,7 +637,7 @@ export default function TeamScrollOverlay({
           className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto"
         >
           <div className="absolute inset-0 bg-background/80 backdrop-blur-xl" onClick={() => setShowAllProjects(false)} />
-          <div className="relative w-full max-w-5xl max-h-[85vh] overflow-y-auto px-4 py-8">
+          <div className="relative w-full max-w-5xl max-h-[85vh] overflow-y-auto px-4 py-8 themed-scrollbar">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tight">All Projects</h2>
               <button
@@ -679,7 +712,7 @@ export default function TeamScrollOverlay({
           className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto"
         >
           <div className="absolute inset-0 bg-background/80 backdrop-blur-xl" onClick={() => setShowCV(false)} />
-          <div className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto px-4 py-8">
+          <div className="relative w-full max-w-3xl max-h-[85vh] overflow-y-auto px-4 py-8 themed-scrollbar">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight">Curriculum Vitae</h2>
               <button
@@ -800,7 +833,7 @@ export default function TeamScrollOverlay({
 
       {/* 06: Contact */}
       <motion.div
-        style={{ opacity: contactOpacity, y: contactY }}
+        style={{ opacity: contactOpacity, y: contactY, pointerEvents: contactPE }}
         className="absolute inset-0 flex items-center justify-center px-4"
       >
         <div className="w-full max-w-4xl glass border border-white/15 rounded-3xl p-8 md:p-12 space-y-6 bg-background/35 backdrop-blur-xl relative overflow-hidden text-center">
@@ -818,7 +851,7 @@ export default function TeamScrollOverlay({
             </p>
           </div>
 
-          <div className="pointer-events-auto flex flex-wrap justify-center gap-4 pt-4">
+          <div className="flex flex-wrap justify-center gap-4 pt-4">
             <a
               href="mailto:mikeadhil2002@gmail.com"
               className="px-6 py-4 bg-accent text-background font-black uppercase tracking-widest text-xs rounded-xl hover:scale-105 transition-transform flex items-center gap-2 shadow-lg shadow-accent/25"
